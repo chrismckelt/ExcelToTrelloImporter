@@ -23,6 +23,16 @@ namespace ExcelToTrelloImporter
 
         public override string ToString()
         {
+            if (AsA.Contains("Marketing"))
+            {
+                return $"As {AsA}, I want to {IWantTo}, so that {SoThat}";
+            }
+
+            if (AsA.Contains("System"))
+            {
+                return $"As the {AsA}, I want to {IWantTo}, so that {SoThat}";
+            }
+
             return $"As a {AsA}, I want to {IWantTo}, so that {SoThat}";
         }
     }

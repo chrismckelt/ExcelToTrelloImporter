@@ -21,8 +21,9 @@ namespace ExcelToTrelloImporter
             var list = ExtractDevCards();
 
             ITrello trello = new Trello("7b17eb1ed849a91c051da9c924f93cfb");
-            // var url = trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
-            trello.Authorize("bdf4ef9325312874025ccce4a197c7794720e36079d78be31d90278bb792225e");
+           // var url = trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
+           // Process.Start(url.AbsoluteUri);
+            trello.Authorize("88b7bf860f1b63bcf1338e69fba56e1dbe0470db8b5e20d7567d2ae93b4da232");
 
             var board = trello.Boards.WithId("55a8cdfd9536d1d4a332691f");
             var backlog = trello.Lists
@@ -32,8 +33,18 @@ namespace ExcelToTrelloImporter
             {
                 Console.WriteLine(devCard.ToString());
                 var cc = new NewCard(devCard.ToString(), backlog);
-                cc.Desc = string.Format("Feature:{0} Priority:{1} Estimated Hours:{2} Notes:{3}", devCard.Feature,devCard.Priority, devCard.EstimatedHours, devCard.Notes);
-                trello.Cards.Add(cc);
+                cc.Desc = string.Format("Feature:{0} Priority:{1} Estimated Hours:{2} Notes:{3}", devCard.Feature, devCard.Priority, devCard.EstimatedHours, devCard.Notes);
+                
+                //trello.Cards.Add(cc);
+            }
+            int pos = 1;
+            var lbls = trello.Labels.ForBoard(board);
+            foreach (var bl in trello.Cards.ForList(backlog))
+            {
+                var ddd = list.FirstOrDefault(x => x.ToString() == bl.Name);
+                bl.Pos = pos++;
+                bl.Labels.Add(lbls.Single(y => y.Name == "UI"));
+                trello.Cards.Update(bl);
             }
         }
 
