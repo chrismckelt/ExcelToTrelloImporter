@@ -42,28 +42,22 @@ namespace ExcelToTrelloImporter
                            devCard.Feature + Environment.NewLine, devCard.Priority + Environment.NewLine,
                            devCard.EstimatedHours + Environment.NewLine, devCard.Notes + Environment.NewLine);
                 cc.Desc = msg;
+                
                // trello.Cards.Add(cc);
             }
             var pos = 1;
             var lbls = trello.Labels.ForBoard(board);
+           
+            var cl = trello.Checklists.Add("Acceptance Criteria", board);
+            
             foreach (var bl in trello.Cards.ForList(backlog))
             {
                 var ddd = list.FirstOrDefault(x => GetCardName(x) == bl.Name);
                 bl.Pos = pos++;
               
                 SetTrelloLabel(ddd, bl, lbls);
-
-               // bl.Checklists.Add(new Card.Checklist {Name = "Acceptance Criteria"});
-                try
-                {
-                    trello.Cards.Update(bl);
-                }
-                catch (Exception)
-                {
-                    
-                    
-                }
-                
+                trello.Cards.Update(bl);
+                trello.Cards.AddChecklist(bl, cl);
             }
         }
 
@@ -71,7 +65,7 @@ namespace ExcelToTrelloImporter
         {
             switch (ddd.SoThat)
             {
-                case "usability ":
+                case "usability":
                     bl.Labels.Add(lbls.Single(y => y.Name == "Usability"));
                     break;
                 case "loan servicability":
