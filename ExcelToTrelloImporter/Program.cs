@@ -14,15 +14,16 @@ namespace ExcelToTrelloImporter
     /// </summary>
     internal class Program
     {
-        private const string File = @"C:\dev\ExcelToTrelloImporter\ExcelToTrelloImporter\userstories.xlsx";
+        private const string File =
+            @"C:\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories.xlsx";
 
         private static void Main(string[] args)
         {
             var list = ExtractDevCards();
 
             ITrello trello = new Trello("7b17eb1ed849a91c051da9c924f93cfb");
-           // var url = trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
-           // Process.Start(url.AbsoluteUri);
+            // var url = trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
+            // Process.Start(url.AbsoluteUri);
             trello.Authorize("88b7bf860f1b63bcf1338e69fba56e1dbe0470db8b5e20d7567d2ae93b4da232");
 
             var board = trello.Boards.WithId("55a8cdfd9536d1d4a332691f");
@@ -32,27 +33,92 @@ namespace ExcelToTrelloImporter
             foreach (var devCard in list)
             {
                 Console.WriteLine(devCard.ToString());
-                var cc = new NewCard(devCard.ToString(), backlog);
-                cc.Desc = string.Format("Feature:{0} Priority:{1} Estimated Hours:{2} Notes:{3}", devCard.Feature, devCard.Priority, devCard.EstimatedHours, devCard.Notes);
-                
-                //trello.Cards.Add(cc);
+                var cardname = GetCardName(devCard);
+
+                var cc = new NewCard(cardname, backlog);
+                var msg = devCard.ToString();
+                msg += Environment.NewLine +
+                       string.Format("Feature:{0} Priority:{1} Estimated Hours:{2} Notes:{3}",
+                           devCard.Feature + Environment.NewLine, devCard.Priority + Environment.NewLine,
+                           devCard.EstimatedHours + Environment.NewLine, devCard.Notes + Environment.NewLine);
+                cc.Desc = msg;
+               // trello.Cards.Add(cc);
             }
-            int pos = 1;
+            var pos = 1;
             var lbls = trello.Labels.ForBoard(board);
             foreach (var bl in trello.Cards.ForList(backlog))
             {
-                var ddd = list.FirstOrDefault(x => x.ToString() == bl.Name);
+                var ddd = list.FirstOrDefault(x => GetCardName(x) == bl.Name);
                 bl.Pos = pos++;
-                bl.Labels.Add(lbls.Single(y => y.Name == "UI"));
-                trello.Cards.Update(bl);
+              
+                SetTrelloLabel(ddd, bl, lbls);
+
+               // bl.Checklists.Add(new Card.Checklist {Name = "Acceptance Criteria"});
+                try
+                {
+                    trello.Cards.Update(bl);
+                }
+                catch (Exception)
+                {
+                    
+                    
+                }
+                
             }
+        }
+
+        private static void SetTrelloLabel(DevCard ddd, Card bl, IEnumerable<Label> lbls)
+        {
+            switch (ddd.SoThat)
+            {
+                case "usability ":
+                    bl.Labels.Add(lbls.Single(y => y.Name == "Usability"));
+                    break;
+                case "loan servicability":
+                    bl.Labels.Add(lbls.Single(y => y.Name == "Loan servicability"));
+                    break;
+                case "validation":
+                    bl.Labels.Add(lbls.Single(y => y.Name == "Validation"));
+                    break;
+                case "compliance":
+                    bl.Labels.Add(lbls.Single(y => y.Name == "Compliance"));
+                    break;
+                case "prevent bad loans":
+                    bl.Labels.Add(lbls.Single(y => y.Name == "Prevent bad loans"));
+                    break;
+                case "loan affordability":
+                    bl.Labels.Add(lbls.Single(y => y.Name == "Loan affordability"));
+                    break;
+                case "customer data is captured":
+                    bl.Labels.Add(lbls.Single(y => y.Name == "Backend"));
+                    break;
+                default:
+                    bl.Labels.Add(lbls.Single(y => y.Name == "Infrastructure"));
+                    break;
+            }
+        }
+
+        private static string GetCardName(DevCard devCard)
+        {
+            string cardname = null;
+            if (string.IsNullOrEmpty(devCard.IWantTo))
+            {
+                cardname = devCard.ToString();
+            }
+            else
+            {
+                cardname = devCard.Feature + ":   " + devCard.IWantTo;
+            }
+
+            cardname += " [" + devCard.EstimatedHours + "]";
+            return cardname;
         }
 
         private static List<DevCard> ExtractDevCards()
         {
             var pck = new ExcelPackage(new FileInfo(File));
 
-            var worksheet = pck.Workbook.Worksheets.First();
+            var worksheet = pck.Workbook.Worksheets.First(x => x.Name == "Backlog");
 
             Console.WriteLine(worksheet.Name);
 
