@@ -14,22 +14,50 @@ namespace ExcelToTrelloImporter
     /// </summary>
     internal class Program
     {
+        private static IEnumerable<Label> _lbls;
+        //private const string File =
+        //    @"C:\work\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories (chris mckelt's conflicted copy 2015-08-25).xlsx";
+
         private const string File =
-            @"C:\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories.xlsx";
+            @"C:\work\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories (chris mckelt's conflicted copy 2015-08-25).xlsx";
+
 
         private static void Main(string[] args)
         {
             var list = ExtractDevCards();
+            var count = 1;
 
             ITrello trello = new Trello("7b17eb1ed849a91c051da9c924f93cfb");
-            // var url = trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
-            // Process.Start(url.AbsoluteUri);
+            //var url = trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
+            //Process.Start(url.AbsoluteUri);
             trello.Authorize("88b7bf860f1b63bcf1338e69fba56e1dbe0470db8b5e20d7567d2ae93b4da232");
 
             var board = trello.Boards.WithId("55a8cdfd9536d1d4a332691f");
             var backlog = trello.Lists
                 .ForBoard(board)
                 .FirstOrDefault(a => a.Name == "Backlog");
+
+            _lbls = trello.Labels.ForBoard(board);
+            AddCards(list, backlog, trello, count);
+          
+            foreach (var s in trello.Cards.ForList(backlog))
+            {
+                s.Badges.Votes = 10;
+                var cl = trello.Checklists.Add("Acceptance Criteria", board);
+                cl.CheckItems.Add(new CheckItem() { Id = Guid.NewGuid().ToString(), Name = "Enter test 1 here...", Pos = 1 });
+
+                trello.Checklists.AddCheckItem(cl, "Add test criteria here...");
+
+                trello.Cards.AddChecklist(s,cl);
+                trello.Cards.Update(s);
+                trello.Checklists.Update(cl);
+            }
+
+            
+        }
+
+        private static void AddCards(List<DevCard> list, List backlog, ITrello trello, int count)
+        {
             foreach (var devCard in list)
             {
                 Console.WriteLine(devCard.ToString());
@@ -37,58 +65,58 @@ namespace ExcelToTrelloImporter
 
                 var cc = new NewCard(cardname, backlog);
                 var msg = devCard.ToString();
-                msg += Environment.NewLine +
+                msg += Environment.NewLine + Environment.NewLine +
                        string.Format("Feature:{0} Priority:{1} Estimated Hours:{2} Notes:{3}",
                            devCard.Feature + Environment.NewLine, devCard.Priority + Environment.NewLine,
                            devCard.EstimatedHours + Environment.NewLine, devCard.Notes + Environment.NewLine);
                 cc.Desc = msg;
-                
-               // trello.Cards.Add(cc);
+
+                var card = trello.Cards.Add(cc);
+
+                SetTrelloLabel(devCard, card, _lbls);
+                SetPriority(devCard, card, count);
+                trello.Cards.Update(card);
+                count ++;
             }
-            var pos = 1;
-            var lbls = trello.Labels.ForBoard(board);
-           
-            var cl = trello.Checklists.Add("Acceptance Criteria", board);
-            
-            foreach (var bl in trello.Cards.ForList(backlog))
+        }
+
+        private static void SetPriority(DevCard devCard, Card card, int count)
+        {
+            switch (devCard.Priority.ToLowerInvariant())
             {
-                var ddd = list.FirstOrDefault(x => GetCardName(x) == bl.Name);
-                bl.Pos = pos++;
-              
-                SetTrelloLabel(ddd, bl, lbls);
-                trello.Cards.Update(bl);
-                trello.Cards.AddChecklist(bl, cl);
+                case "must":
+                    card.Pos = 1*count;
+                    SetLabel(card, () => devCard.Priority.ToLowerInvariant().Contains("must"), "Must");
+                    break;
+                case "should":
+                    card.Pos = 2*count;
+                    SetLabel(card, () => devCard.Priority.ToLowerInvariant().Contains("should"), "Should");
+                    break;
+                case "could":
+                    card.Pos = 3*count;
+                    SetLabel(card, () => devCard.Priority.ToLowerInvariant().Contains("could"), "Could");
+                    break;
+                default:
+                    card.Pos = 4*count;
+                    break;
             }
+        }
+
+        private static void SetLabel(Card card, Func<bool> cardContains, string label)
+        {
+            var yep = cardContains();
+            if (yep)
+                card.Labels.Add(_lbls.Single(y => y.Name == label));
         }
 
         private static void SetTrelloLabel(DevCard ddd, Card bl, IEnumerable<Label> lbls)
         {
-            switch (ddd.SoThat)
+            foreach (var label in lbls)
             {
-                case "usability":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Usability"));
-                    break;
-                case "loan servicability":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Loan servicability"));
-                    break;
-                case "validation":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Validation"));
-                    break;
-                case "compliance":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Compliance"));
-                    break;
-                case "prevent bad loans":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Prevent bad loans"));
-                    break;
-                case "loan affordability":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Loan affordability"));
-                    break;
-                case "customer data is captured":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Backend"));
-                    break;
-                default:
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Infrastructure"));
-                    break;
+                if (ddd.ToString().ToLowerInvariant().Contains(label.Name.ToLowerInvariant()))
+                {
+                    bl.Labels.Add(label);
+                }
             }
         }
 
