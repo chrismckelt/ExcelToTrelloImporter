@@ -15,7 +15,7 @@ namespace ExcelToTrelloImporter
     internal class Program
     {
         private const string File =
-            @"C:\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories.xlsx";
+            @"D:\work\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories.xlsx";
 
         private static void Main(string[] args)
         {
@@ -49,6 +49,7 @@ namespace ExcelToTrelloImporter
             var lbls = trello.Labels.ForBoard(board);
            
             var cl = trello.Checklists.Add("Acceptance Criteria", board);
+            trello.Checklists.Update(cl);
             
             foreach (var bl in trello.Cards.ForList(backlog))
             {
@@ -56,40 +57,45 @@ namespace ExcelToTrelloImporter
                 bl.Pos = pos++;
               
                 SetTrelloLabel(ddd, bl, lbls);
+                bl.Badges.Votes = Convert.ToInt32(ddd.EstimatedHours);
+                bl.Checklists = new List<Card.Checklist>();
+                bl.Checklists.Add(new Card.Checklist());
+                bl.Checklists[0].Name = "Acceptance Criteria";
                 trello.Cards.Update(bl);
-                trello.Cards.AddChecklist(bl, cl);
+               
             }
         }
 
         private static void SetTrelloLabel(DevCard ddd, Card bl, IEnumerable<Label> lbls)
         {
-            switch (ddd.SoThat)
-            {
-                case "usability":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Usability"));
-                    break;
-                case "loan servicability":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Loan servicability"));
-                    break;
-                case "validation":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Validation"));
-                    break;
-                case "compliance":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Compliance"));
-                    break;
-                case "prevent bad loans":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Prevent bad loans"));
-                    break;
-                case "loan affordability":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Loan affordability"));
-                    break;
-                case "customer data is captured":
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Backend"));
-                    break;
-                default:
-                    bl.Labels.Add(lbls.Single(y => y.Name == "Infrastructure"));
-                    break;
-            }
+            if (ddd != null)
+                switch (ddd.ToString().ToLowerInvariant())
+                {
+                    case "usability":
+                        bl.Labels.Add(lbls.Single(y => y.Name == "Usability"));
+                        break;
+                    case "loan servicability":
+                        bl.Labels.Add(lbls.Single(y => y.Name == "Loan servicability"));
+                        break;
+                    case "validation":
+                        bl.Labels.Add(lbls.Single(y => y.Name == "Validation"));
+                        break;
+                    case "compliance":
+                        bl.Labels.Add(lbls.Single(y => y.Name == "Compliance"));
+                        break;
+                    case "prevent bad loans":
+                        bl.Labels.Add(lbls.Single(y => y.Name == "Prevent bad loans"));
+                        break;
+                    case "loan affordability":
+                        bl.Labels.Add(lbls.Single(y => y.Name == "Loan affordability"));
+                        break;
+                    case "customer data is captured":
+                        bl.Labels.Add(lbls.Single(y => y.Name == "Backend"));
+                        break;
+                    default:
+                        bl.Labels.Add(lbls.Single(y => y.Name == "Infrastructure"));
+                        break;
+                }
         }
 
         private static string GetCardName(DevCard devCard)
