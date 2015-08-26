@@ -42,7 +42,6 @@ namespace ExcelToTrelloImporter
           
             foreach (var s in trello.Cards.ForList(backlog))
             {
-                s.Badges.Votes = 10;
                 var cl = trello.Checklists.Add("Acceptance Criteria", board);
                 cl.CheckItems.Add(new CheckItem() { Id = Guid.NewGuid().ToString(), Name = "Enter test 1 here...", Pos = 1 });
 
@@ -66,9 +65,9 @@ namespace ExcelToTrelloImporter
                 var cc = new NewCard(cardname, backlog);
                 var msg = devCard.ToString();
                 msg += Environment.NewLine + Environment.NewLine +
-                       string.Format("Feature:{0} Priority:{1} Estimated Hours:{2} Notes:{3}",
+                       string.Format("Feature:{0} Priority:{1}    {2}",
                            devCard.Feature + Environment.NewLine, devCard.Priority + Environment.NewLine,
-                           devCard.EstimatedHours + Environment.NewLine, devCard.Notes + Environment.NewLine);
+                           devCard.Notes + Environment.NewLine);
                 cc.Desc = msg;
 
                 var card = trello.Cards.Add(cc);
@@ -132,7 +131,7 @@ namespace ExcelToTrelloImporter
                 cardname = devCard.Feature + ":   " + devCard.IWantTo;
             }
 
-            cardname += " [" + devCard.EstimatedHours + "]";
+            cardname = "(" + devCard.EstimatedHours + ") " + cardname;
             return cardname;
         }
 
