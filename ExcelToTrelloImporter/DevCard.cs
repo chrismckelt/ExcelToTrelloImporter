@@ -8,7 +8,7 @@ namespace ExcelToTrelloImporter
 {
     public class DevCard
     {
-        public string Epic { get; set; } 
+        public string Milestone { get; set; } 
         public string Feature { get; set; }
         public string AsA { get; set; } 
         public string IWantTo { get; set; } 

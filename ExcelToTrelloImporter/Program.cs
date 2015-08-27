@@ -19,17 +19,18 @@ namespace ExcelToTrelloImporter
         //    @"C:\work\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories (chris mckelt's conflicted copy 2015-08-25).xlsx";
 
         private const string File =
-            @"C:\work\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories (chris mckelt's conflicted copy 2015-08-25).xlsx";
+            @"C:\work\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories.xlsx";
 
 
         private static void Main(string[] args)
         {
-            var list = ExtractDevCards();
+            const string milestone = "Setup";
+            var list = ExtractDevCards().Where(a=>a.Milestone == milestone).ToList();
             var count = 1;
 
             ITrello trello = new Trello("7b17eb1ed849a91c051da9c924f93cfb");
-            //var url = trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
-            //Process.Start(url.AbsoluteUri);
+            var url = trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
+            Process.Start(url.AbsoluteUri);
             trello.Authorize("88b7bf860f1b63bcf1338e69fba56e1dbe0470db8b5e20d7567d2ae93b4da232");
 
             var board = trello.Boards.WithId("55a8cdfd9536d1d4a332691f");
@@ -160,7 +161,7 @@ namespace ExcelToTrelloImporter
                     switch (col)
                     {
                         case 1:
-                            dc.Epic = Convert.ToString(cellValue);
+                            dc.Milestone = Convert.ToString(cellValue);
                             break;
                         case 2:
                             dc.Feature = Convert.ToString(cellValue);
