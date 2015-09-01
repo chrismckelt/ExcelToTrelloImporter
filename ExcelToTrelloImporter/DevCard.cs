@@ -20,6 +20,9 @@ namespace ExcelToTrelloImporter
         public decimal EstimatedHours { get; set; } 
 
         public string Notes { get; set; }
+        public string InSprint { get; set; }
+        public string AcceptanceCriteria { get; set; }
+        public string Uac { get; set; }
 
         public override string ToString()
         {

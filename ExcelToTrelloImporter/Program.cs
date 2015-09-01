@@ -22,38 +22,51 @@ namespace ExcelToTrelloImporter
         private static Dictionary<Card, DevCard> _dic;
         private static int _count = 1;
 
-        //private const string File =
-        //    @"C:\dev\ExcelToTrelloImporter\ExcelToTrelloImporter\UserStories.xlsx";
+       // private const string File = @"C:\dev\ExcelToTrelloImporter\ExcelToTrelloImporter\UserStories.xlsx";
 
-        private const string File =
-             @"C:\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories_V0.8 _InSprintColumnAdded.xlsx";
+          private const string File = @"C:\work\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\user stories_v0.8_cm.xlsx";
 
+        private static ExcelPackage _pck;
+
+        public static Checklist SetChecklist(DevCard card)
+        {
+            var checklist = _trello.Checklists.Add("Acceptance Criteria", _board);
+            checklist.CheckItems.Add(new CheckItem { Id = Guid.NewGuid().ToString(), Name = "Enter test 1 here...", Pos = 1 });
+            
+            string text = "Add test criteria here...";
+            _trello.Checklists.AddCheckItem(checklist, !string.IsNullOrEmpty(card.AcceptanceCriteria) ? card.AcceptanceCriteria : text);
+            return checklist;
+        }
 
         private static void Main(string[] args)
         {
+            if (!System.IO.File.Exists(File)) throw new FileNotFoundException(File);
+
+            _pck = new ExcelPackage(new FileInfo(File));
+
             GetColumnIndexes();
 
 
             const string milestone = "Screens";
-            var list = ExtractDevCards().Where(a => a.Milestone == milestone && a.EstimatedHours > 0).ToList();
+            _devCards = ExtractDevCards().Where(a => a.Milestone == milestone && a.EstimatedHours > 0).ToList();
 
             _trello = new Trello("7b17eb1ed849a91c051da9c924f93cfb");
             var url = _trello.GetAuthorizationUrl("userstorydataloader", Scope.ReadWrite);
             //Process.Start(url.AbsoluteUri);
             _trello.Authorize("db2c728bfd1b4cca3e07c0176e6ac3208fd4f363f383f9e0a2ac74081da4cd95");
 
-            var board = _trello.Boards.WithId("55a8cdfd9536d1d4a332691f");
-            var backlog = _trello.Lists
-                .ForBoard(board)
+            _board = _trello.Boards.WithId("55a8cdfd9536d1d4a332691f");
+            _backlog = _trello.Lists
+                .ForBoard(_board)
                 .FirstOrDefault(a => a.Name == "Backlog");
 
-            _lbls = _trello.Labels.ForBoard(board);
+            _lbls = _trello.Labels.ForBoard(_board);
 
-            AddCards(list, backlog, _trello, _count);
+            AddCards(_devCards, _backlog, _trello, _count);
             Thread.Sleep(5000);
-            AddAcceptanceCriteria(backlog, board);
+            AddAcceptanceCriteria(_backlog, _board);
             Thread.Sleep(5000);
-            AddLabels(backlog, board);
+            AddLabels(_backlog, _board);
         }
 
         private static void AddLabels(List backlog, Board board)
@@ -77,15 +90,12 @@ namespace ExcelToTrelloImporter
 
         private static void AddAcceptanceCriteria(List backlog, Board board)
         {
-            foreach (var card in _trello.Cards.ForList(backlog))
+            foreach (var card in _trello.Cards.ForList(backlog).Where(a=>a.Checklists.Count==0))
             {
-                var cl = _trello.Checklists.Add("Acceptance Criteria", board);
-                cl.CheckItems.Add(new CheckItem { Id = Guid.NewGuid().ToString(), Name = "Enter test 1 here...", Pos = 1 });
-
-                _trello.Checklists.AddCheckItem(cl, "Add test criteria here...");
+                var gg = _devCards.FirstOrDefault(a => GetCardName(a) == card.Name);
+                var cl = SetChecklist(gg);
 
                 _trello.Cards.AddChecklist(card, cl);
-
                 _trello.Cards.Update(card);
                 _trello.Checklists.Update(cl);
             }
@@ -119,6 +129,7 @@ namespace ExcelToTrelloImporter
 
                 _cards.Add(card);
                 _dic.Add(card, devCard);
+               
             }
         }
 
@@ -179,13 +190,15 @@ namespace ExcelToTrelloImporter
             return cardname;
         }
 
-        public static List<int> Rows { get; set; }
+        public static List<int> Rows = new List<int>();
+        private static Dictionary<string, int> _columnIndexes;
+        private static Board _board;
+        private static List _backlog;
+        private static List<DevCard> _devCards;
 
         private static List<DevCard> ExtractDevCards()
         {
-            using (var pck = new ExcelPackage(new FileInfo(File)))
-            {
-                var worksheet = pck.Workbook.Worksheets.First(x => x.Name == "Backlog");
+                var worksheet = _pck.Workbook.Worksheets.First(x => x.Name == "Backlog");
 
                 Console.WriteLine(worksheet.Name);
 
@@ -233,49 +246,58 @@ namespace ExcelToTrelloImporter
                             case 9:
                                 dc.Notes = Convert.ToString(cellValue);
                                 break;
+                        default:
+                                int icol;
+                                if (_columnIndexes.TryGetValue("UAC", out icol))
+                                    if (icol == col)
+                                    {
+                                        dc.AcceptanceCriteria = Convert.ToString(cellValue);
+                                    }
+                                break;
                         }
                     }
                     list.Add(dc);
                 }
                 return list;
-            }
-
 
         }
 
         private static Dictionary<string, int> GetColumnIndexes()
         {
-            var dic = new Dictionary<string, int>();
-            using (var pck = new ExcelPackage(new FileInfo(File)))
-            {
-                var worksheet = pck.Workbook.Worksheets.First(x => x.Name.Contains("Backlog"));
-                var start = worksheet.Dimension.Start;
-                var end = worksheet.Dimension.End;
-                for (var col = start.Column; col <= end.Column; col++)
-                {
-                    dic.Add(worksheet.Cells[0, col].Text, col);
-                }
-            }
+            _columnIndexes = new Dictionary<string, int>();
+             var workbook = _pck.Workbook;
 
-            return dic;
+            if (!workbook.Worksheets.Any()) return null;
+            var worksheet = workbook.Worksheets.First(x => x.Name.Contains("Backlog"));
+            var start = worksheet.Dimension.Start;
+            var end = worksheet.Dimension.End;
+            for (var col = start.Column; col <= end.Column; col++)
+            {
+                string txt = worksheet.Cells[1, col].Text;
+                if (!string.IsNullOrEmpty(txt))
+                    _columnIndexes.Add(txt, col);
+
+                if (col > 500) break;
+            }
+            
+
+            return _columnIndexes;
         }
 
         private static void MarkRowsAsInSprint()
         {
-            if (!System.IO.File.Exists(File)) throw new FileNotFoundException(File);
-            using (var pck = new ExcelPackage(new FileInfo(File)))
+           
+            var worksheet = _pck.Workbook.Worksheets.First(x => x.Name == "Backlog");
+            var start = worksheet.Dimension.Start;
+            var end = worksheet.Dimension.End;
+            for (var row = start.Row; row <= end.Row; row++)
             {
-                var worksheet = pck.Workbook.Worksheets.First(x => x.Name == "Backlog");
-                var start = worksheet.Dimension.Start;
-                var end = worksheet.Dimension.End;
-                for (var row = start.Row; row <= end.Row; row++)
+                if (Rows.Contains(row))
                 {
-                    if (Rows.Contains(row))
-                    {
-
-                    }
+                    var txt = GetColumnIndexes().First(a => a.Value == row).Key;
+                     
                 }
-                }
+            }
         }
     }
 }
