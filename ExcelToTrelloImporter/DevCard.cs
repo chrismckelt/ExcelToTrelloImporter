@@ -35,5 +35,11 @@ namespace ExcelToTrelloImporter
 
             return $"As a {AsA}, I want to {IWantTo}, so that {SoThat}";
         }
+
+        
+        public string FullString()
+        {
+            return string.Format("{0}, {1}, {2}, {3}", ToString(), Priority, Notes, Feature);
+        }
     }
 }
