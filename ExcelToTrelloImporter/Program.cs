@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using OfficeOpenXml;
 using TrelloNet;
@@ -21,15 +22,18 @@ namespace ExcelToTrelloImporter
         private static Dictionary<Card, DevCard> _dic;
         private static int _count = 1;
 
-        private const string File =
-            @"C:\dev\ExcelToTrelloImporter\ExcelToTrelloImporter\UserStories.xlsx";
-
         //private const string File =
-        //     @"C:\work\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories.xlsx";
+        //    @"C:\dev\ExcelToTrelloImporter\ExcelToTrelloImporter\UserStories.xlsx";
+
+        private const string File =
+             @"C:\Dropbox\FGF CloudLending\5. Requirements\FGF Application form\User Stories_V0.8 _InSprintColumnAdded.xlsx";
 
 
         private static void Main(string[] args)
         {
+            GetColumnIndexes();
+
+
             const string milestone = "Screens";
             var list = ExtractDevCards().Where(a => a.Milestone == milestone && a.EstimatedHours > 0).ToList();
 
@@ -58,14 +62,14 @@ namespace ExcelToTrelloImporter
             {
                 if (!_dic.Any(a => a.Key.Name == card.Name)) continue;
                 var xxx = _dic.FirstOrDefault(a => a.Key.Name == card.Name);
-                if (xxx.Key!=null)
+                if (xxx.Key != null)
                 {
                     SetPriority(xxx.Value, card, _count);
                     _count++;
- 
+
                     SetTrelloLabel(xxx.Value, card);
 
-                   // _trello.Cards.Update(card);
+                    // _trello.Cards.Update(card);
                     Thread.Sleep(500);
                 }
             }
@@ -76,12 +80,12 @@ namespace ExcelToTrelloImporter
             foreach (var card in _trello.Cards.ForList(backlog))
             {
                 var cl = _trello.Checklists.Add("Acceptance Criteria", board);
-                cl.CheckItems.Add(new CheckItem {Id = Guid.NewGuid().ToString(), Name = "Enter test 1 here...", Pos = 1});
+                cl.CheckItems.Add(new CheckItem { Id = Guid.NewGuid().ToString(), Name = "Enter test 1 here...", Pos = 1 });
 
                 _trello.Checklists.AddCheckItem(cl, "Add test criteria here...");
 
                 _trello.Cards.AddChecklist(card, cl);
-               
+
                 _trello.Cards.Update(card);
                 _trello.Checklists.Update(cl);
             }
@@ -104,7 +108,7 @@ namespace ExcelToTrelloImporter
                            devCard.Feature + Environment.NewLine, devCard.Priority + Environment.NewLine,
                            devCard.Notes + Environment.NewLine);
                 cc.Desc = msg;
-     
+
                 var card =
                   trello.Cards.ForList(backlog).FirstOrDefault(a => a.Name.ToLowerInvariant() == cardname.ToLowerInvariant());
 
@@ -124,16 +128,16 @@ namespace ExcelToTrelloImporter
             switch (devCard.Priority.ToLowerInvariant())
             {
                 case "must":
-                    card.Pos = 1*count;
-                     break;
+                    card.Pos = 1 * count;
+                    break;
                 case "should":
-                    card.Pos = 2*count;
-                     break;
+                    card.Pos = 2 * count;
+                    break;
                 case "could":
-                    card.Pos = 3*count;
+                    card.Pos = 3 * count;
                     break;
                 default:
-                    card.Pos = 4*count;
+                    card.Pos = 4 * count;
                     break;
             }
         }
@@ -148,7 +152,7 @@ namespace ExcelToTrelloImporter
                 if (ddd.ToString().ToLowerInvariant().Contains(label.Name.ToLowerInvariant()))
                 {
                     bl.Labels.Add(label);
-                     _trello.Cards.AddLabel(bl, label.Color.Value);
+                    _trello.Cards.AddLabel(bl, label.Color.Value);
                 }
 
                 if (ddd.Priority.ToLowerInvariant().Contains(label.Name.ToLowerInvariant()))
@@ -175,63 +179,103 @@ namespace ExcelToTrelloImporter
             return cardname;
         }
 
+        public static List<int> Rows { get; set; }
+
         private static List<DevCard> ExtractDevCards()
         {
-            var pck = new ExcelPackage(new FileInfo(File));
-
-            var worksheet = pck.Workbook.Worksheets.First(x => x.Name == "Backlog");
-
-            Console.WriteLine(worksheet.Name);
-
-            var list = new List<DevCard>();
-
-            var start = worksheet.Dimension.Start;
-            var end = worksheet.Dimension.End;
-            for (var row = start.Row; row <= end.Row; row++)
+            using (var pck = new ExcelPackage(new FileInfo(File)))
             {
-                if (row <= 1) continue;
-                if (row > 50) break;
+                var worksheet = pck.Workbook.Worksheets.First(x => x.Name == "Backlog");
 
-                var dc = new DevCard();
+                Console.WriteLine(worksheet.Name);
+
+                var list = new List<DevCard>();
+
+                var start = worksheet.Dimension.Start;
+                var end = worksheet.Dimension.End;
+                for (var row = start.Row; row <= end.Row; row++)
+                {
+                    if (row <= 1) continue;
+                    if (row > 50) break;
+                    Rows.Add(row);
+                    var dc = new DevCard();
+                    for (var col = start.Column; col <= end.Column; col++)
+                    {
+                        // ... Cell by cell...
+                        object cellValue = worksheet.Cells[row, col].Text; // This got me the actual value I needed.
+                        Debug.WriteLine(cellValue);
+                        if (col > 50) break;
+                        switch (col)
+                        {
+                            case 1:
+                                dc.Milestone = Convert.ToString(cellValue);
+                                break;
+                            case 3:
+                                dc.Feature = Convert.ToString(cellValue);
+                                break;
+                            case 4:
+                                dc.AsA = Convert.ToString(cellValue);
+                                break;
+                            case 5:
+                                dc.IWantTo = Convert.ToString(cellValue);
+                                break;
+                            case 6:
+                                dc.SoThat = Convert.ToString(cellValue);
+                                break;
+                            case 7:
+                                dc.Priority = Convert.ToString(cellValue);
+                                break;
+                            case 8:
+                                var ss = Convert.ToString(cellValue);
+                                var no = string.IsNullOrEmpty(ss) ? "5" : ss;
+                                dc.EstimatedHours = Convert.ToInt16(no);
+                                break;
+                            case 9:
+                                dc.Notes = Convert.ToString(cellValue);
+                                break;
+                        }
+                    }
+                    list.Add(dc);
+                }
+                return list;
+            }
+
+
+        }
+
+        private static Dictionary<string, int> GetColumnIndexes()
+        {
+            var dic = new Dictionary<string, int>();
+            using (var pck = new ExcelPackage(new FileInfo(File)))
+            {
+                var worksheet = pck.Workbook.Worksheets.First(x => x.Name.Contains("Backlog"));
+                var start = worksheet.Dimension.Start;
+                var end = worksheet.Dimension.End;
                 for (var col = start.Column; col <= end.Column; col++)
                 {
-                    // ... Cell by cell...
-                    object cellValue = worksheet.Cells[row, col].Text; // This got me the actual value I needed.
-                    Debug.WriteLine(cellValue);
-                    if (col > 50) break;
-                    switch (col)
+                    dic.Add(worksheet.Cells[0, col].Text, col);
+                }
+            }
+
+            return dic;
+        }
+
+        private static void MarkRowsAsInSprint()
+        {
+            if (!System.IO.File.Exists(File)) throw new FileNotFoundException(File);
+            using (var pck = new ExcelPackage(new FileInfo(File)))
+            {
+                var worksheet = pck.Workbook.Worksheets.First(x => x.Name == "Backlog");
+                var start = worksheet.Dimension.Start;
+                var end = worksheet.Dimension.End;
+                for (var row = start.Row; row <= end.Row; row++)
+                {
+                    if (Rows.Contains(row))
                     {
-                        case 1:
-                            dc.Milestone = Convert.ToString(cellValue);
-                            break;
-                        case 3:
-                            dc.Feature = Convert.ToString(cellValue);
-                            break;
-                        case 4:
-                            dc.AsA = Convert.ToString(cellValue);
-                            break;
-                        case 5:
-                            dc.IWantTo = Convert.ToString(cellValue);
-                            break;
-                        case 6:
-                            dc.SoThat = Convert.ToString(cellValue);
-                            break;
-                        case 7:
-                            dc.Priority = Convert.ToString(cellValue);
-                            break;
-                        case 8:
-                            var ss = Convert.ToString(cellValue);
-                            var no = string.IsNullOrEmpty(ss) ? "5" : ss;
-                            dc.EstimatedHours = Convert.ToInt16(no);
-                            break;
-                        case 9:
-                            dc.Notes = Convert.ToString(cellValue);
-                            break;
+
                     }
                 }
-                list.Add(dc);
-            }
-            return list;
+                }
         }
     }
 }
